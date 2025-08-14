@@ -23,9 +23,14 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 router = APIRouter(prefix="/api/v1")
 
+
+def get_short_key():
+    short_key = ''.join(secrets.choice(alphabet) for _ in range(6))
+    return short_key
+
 @router.post("/shorten", response_model=LinkCreateResponse)
 async def create_short_link(payload: LinkCreate, db: AsyncSession = Depends(get_db)):
-    short_key = ''.join(secrets.choice(alphabet) for _ in range(6))
+    short_key = get_short_key()
     db_link = Link(short_key=short_key, url=str(payload.url))
     db.add(db_link)
     await db.commit()

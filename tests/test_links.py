@@ -1,6 +1,6 @@
 import unittest
 from fastapi.testclient import TestClient
-from src.main import app
+from src.main import app, get_short_key
 from src.database import init_db, Base
 from src.models import Link
 from sqlalchemy import select
@@ -49,11 +49,12 @@ class AsyncTestLinks(unittest.IsolatedAsyncioTestCase):
     async def test_redirect_short_link(self):
         # Создаём запись напрямую
         async with self.AsyncSessionLocal() as session:
-            link = Link(short_key="ABC123", url="https://example.com/redirect", use_counter=0)
+            key = get_short_key()
+            link = Link(short_key=key, url="https://example.com/redirect", use_counter=0)
             session.add(link)
             await session.commit()
 
         # noinspection PyArgumentList
-        response = self.client.get("/api/v1/s/ABC123", allow_redirects=False)
+        response = self.client.get("/api/v1/s/ABC123", follow_redirects=False)
         self.assertEqual(response.status_code, 307)
         self.assertEqual(response.headers["location"], "https://example.com/redirect")
