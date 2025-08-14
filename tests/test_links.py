@@ -1,3 +1,4 @@
+import asyncio
 import unittest
 from fastapi.testclient import TestClient
 from src.main import app, get_short_key
@@ -12,12 +13,9 @@ class AsyncTestLinks(unittest.IsolatedAsyncioTestCase):
 
     @classmethod
     def setUpClass(cls):
-        # Создаём TestClient на уровне класса синхронно
         cls.client = TestClient(app)
-        # Инициализация асинхронной базы через init_db
         cls.engine, cls.AsyncSessionLocal = init_db(TEST_DB_URL)
-        # Создаём таблицы
-        import asyncio
+        # Let's create the tables
         asyncio.run(cls._create_tables())
 
     @classmethod
