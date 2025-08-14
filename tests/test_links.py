@@ -83,3 +83,11 @@ class AsyncTestLinks(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(data["original_url"], "https://example.com")
         self.assertEqual(data["clicks"], 5)
         self.assertIn("created_at", data)
+
+    async def test_redirect_short_link_not_found(self):
+        non_existent_key = "NOPE01"
+
+        response = self.client.get(f"/api/v1/s/{non_existent_key}", follow_redirects=False)
+        self.assertEqual(response.status_code, 404)
+        data = response.json()
+        self.assertEqual(data["detail"], "Link not found")
