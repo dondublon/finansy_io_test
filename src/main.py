@@ -1,4 +1,4 @@
-# main.py
+import string
 import secrets
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import RedirectResponse
@@ -8,6 +8,9 @@ from contextlib import asynccontextmanager
 from .database import engine, Base, get_db
 from .models import Link
 from .schemas import LinkCreate, LinkCreateResponse
+from fastapi import APIRouter
+
+alphabet = string.ascii_letters + string.digits
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -16,19 +19,19 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan)
+router = APIRouter(prefix="/api/v1")
 
-
-@app.post("/shorten", response_model=LinkCreateResponse)
+@router.post("/shorten", response_model=LinkCreateResponse)
 async def create_short_link(payload: LinkCreate, db: AsyncSession = Depends(get_db)):
-    short_key = secrets.token_urlsafe(4)[:6]  # 6 символов
+    short_key = ''.join(secrets.choice(alphabet) for _ in range(6))
     db_link = Link(short_key=short_key, url=str(payload.url))
     db.add(db_link)
     await db.commit()
-    await db.refresh(db_link)
+    # await db.refresh(db_link)
     return db_link
 
 
-@app.get("/{short_key}")
+@router.get("/s/{short_key}")
 async def redirect_short_link(short_key: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Link).where(Link.short_key == short_key))
     link = result.scalars().first()
@@ -37,3 +40,4 @@ async def redirect_short_link(short_key: str, db: AsyncSession = Depends(get_db)
     link.use_counter += 1
     await db.commit()
     return RedirectResponse(url=link.url)
+app.include_router(router)
