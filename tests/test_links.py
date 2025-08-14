@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 TEST_DB_URL = "sqlite+aiosqlite:///./test.db"
 
+
 class AsyncTestLinks(unittest.IsolatedAsyncioTestCase):
 
     @classmethod
@@ -23,7 +24,6 @@ class AsyncTestLinks(unittest.IsolatedAsyncioTestCase):
     async def _create_tables(cls):
         async with cls.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-
 
     @classmethod
     async def asyncTearDownClass(cls):
@@ -47,7 +47,6 @@ class AsyncTestLinks(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(link.url, valid_url)
 
     async def test_redirect_short_link(self):
-        # Создаём запись напрямую
         key = get_short_key()
         async with self.AsyncSessionLocal() as session:
             link = Link(short_key=key, url="https://example.com/redirect", use_counter=0)
@@ -58,14 +57,13 @@ class AsyncTestLinks(unittest.IsolatedAsyncioTestCase):
         response = self.client.get(f"/api/v1/s/{key}", follow_redirects=False)
         self.assertEqual(response.status_code, 307)
         self.assertEqual(response.headers["location"], "https://example.com/redirect")
-        # Проверка счётчика
+        # Let's check the counter
         async with self.AsyncSessionLocal() as session:
             result = await session.execute(select(Link).where(Link.short_key == key))
             updated_link = result.scalar_one()
             self.assertEqual(updated_link.use_counter, 1)
 
     async def test_stats_endpoint(self):
-        # Создаём запись напрямую в базе
         key = get_short_key()
         async with self.AsyncSessionLocal() as session:
             link = Link(
@@ -76,7 +74,7 @@ class AsyncTestLinks(unittest.IsolatedAsyncioTestCase):
             session.add(link)
             await session.commit()
 
-        # Вызываем эндпоинт
+        # Call endpoint
         response = self.client.get(f"/api/v1/stats/{key}")
         self.assertEqual(response.status_code, 200)
         data = response.json()
