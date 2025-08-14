@@ -48,13 +48,13 @@ class AsyncTestLinks(unittest.IsolatedAsyncioTestCase):
 
     async def test_redirect_short_link(self):
         # Создаём запись напрямую
+        key = get_short_key()
         async with self.AsyncSessionLocal() as session:
-            key = get_short_key()
             link = Link(short_key=key, url="https://example.com/redirect", use_counter=0)
             session.add(link)
             await session.commit()
 
         # noinspection PyArgumentList
-        response = self.client.get("/api/v1/s/ABC123", follow_redirects=False)
+        response = self.client.get(f"/api/v1/s/{key}", follow_redirects=False)
         self.assertEqual(response.status_code, 307)
         self.assertEqual(response.headers["location"], "https://example.com/redirect")

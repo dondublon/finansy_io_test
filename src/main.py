@@ -47,4 +47,17 @@ async def redirect_short_link(short_key: str, db: AsyncSession = Depends(get_db)
     link.use_counter += 1
     await db.commit()
     return RedirectResponse(url=link.url)
+
+
+@router.get("/stats/{key}")
+async def get_stats(key: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Link).where(Link.short_key == key))
+    link = result.scalar_one_or_none()
+    if link is None:
+        raise HTTPException(status_code=404, detail="Link not found")
+    return {
+        "original_url": link.url,
+        "clicks": link.use_counter,
+        "created_at": link.created_at
+    }
 app.include_router(router)
