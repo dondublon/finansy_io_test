@@ -1,5 +1,7 @@
 import string
 import secrets
+from urllib.parse import urlparse
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +32,9 @@ def get_short_key():
 
 @router.post("/shorten", response_model=LinkCreateResponse)
 async def create_short_link(payload: LinkCreate, db: AsyncSession = Depends(get_db)):
+    parsed = urlparse(payload.url)
+    if not parsed.scheme or not parsed.netloc:
+        raise HTTPException(status_code=400, detail="Invalid URL")
     short_key = get_short_key()
     db_link = Link(short_key=short_key, url=str(payload.url))
     db.add(db_link)
