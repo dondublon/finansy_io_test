@@ -5,7 +5,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from contextlib import asynccontextmanager
-from .database import engine, Base, get_db
+from .database import Base, get_db, init_db
 from .models import Link
 from .schemas import LinkCreate, LinkCreateResponse
 from fastapi import APIRouter
@@ -14,9 +14,11 @@ alphabet = string.ascii_letters + string.digits
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    engine, AsyncSessionLocal = init_db()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
+    await engine.dispose()
 
 app = FastAPI(lifespan=lifespan)
 router = APIRouter(prefix="/api/v1")

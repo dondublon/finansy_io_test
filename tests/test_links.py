@@ -1,72 +1,59 @@
-import os
 import unittest
 from fastapi.testclient import TestClient
 from src.main import app
-from src.database import Base, create_async_engine_and_session
+from src.database import init_db, Base
 from src.models import Link
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select
 
+TEST_DB_URL = "sqlite+aiosqlite:///./test.db"
 
-TEST_DB = "sqlite+aiosqlite:///./test.db"
+class AsyncTestLinks(unittest.IsolatedAsyncioTestCase):
 
-class TestLinks(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # Создаём отдельный движок и сессию для тестов
-        cls.engine, cls.AsyncSessionLocal = create_async_engine_and_session(TEST_DB)
-        # Синхронная сессия для прямых запросов (для проверки и подготовки данных)
-        cls.SyncSession = sessionmaker(bind=cls.engine.sync_engine)
+        # Создаём TestClient на уровне класса синхронно
+        cls.client = TestClient(app)
+        # Инициализация асинхронной базы через init_db
+        cls.engine, cls.AsyncSessionLocal = init_db(TEST_DB_URL)
         # Создаём таблицы
         import asyncio
-        asyncio.run(cls.create_tables())
-        cls.client = TestClient(app)
+        asyncio.run(cls._create_tables())
 
     @classmethod
-    async def create_tables(cls):
+    async def _create_tables(cls):
         async with cls.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
+
     @classmethod
-    def tearDownClass(cls):
-        # Удаляем файл базы
-        cls.engine.sync_engine.dispose()
-        db_file = TEST_DB.replace("sqlite+aiosqlite:///", "")
-        if os.path.exists(db_file):
-            os.remove(db_file)
+    async def asyncTearDownClass(cls):
+        await cls.engine.dispose()
 
+    async def test_create_short_link_invalid_url(self):
+        invalid_url = "not_a_url"
+        response = self.client.post("/api/v1/shorten", json={"url": invalid_url})
+        self.assertEqual(response.status_code, 422)  # FastAPI валидация
 
-    def test_create_short_link_invalid_url(self):
-        response = self.client.post("/api/v1/shorten", json={"url": "bad-url"})
-        # Pydantic выдаёт 422, если URL некорректный
-        self.assertEqual(response.status_code, 422)
-
-    def test_create_short_link_valid_url(self):
-        valid_url = "https://example.com/test"
+    async def test_create_short_link_valid_url(self):
+        valid_url = "https://example.com"
         response = self.client.post("/api/v1/shorten", json={"url": valid_url})
         self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertIn("short_key", data)
-        short_key = data["short_key"]
+        short_key = response.json()["short_key"]
 
-        db = self.SyncSession()
-        link = db.query(Link).filter(Link.short_key == short_key).first()
-        db.close()
+        async with self.AsyncSessionLocal() as session:
+            result = await session.execute(select(Link).where(Link.short_key == short_key))
+            link = result.scalars().first()
         self.assertIsNotNone(link)
         self.assertEqual(link.url, valid_url)
 
-    def test_redirect_short_link(self):
-        # Добавляем запись напрямую, без HTTP-запроса
-        db = self.SyncSession()
-        link = Link(short_key="ABC123", url="https://example.com/redirect", use_counter=0)
-        db.add(link)
-        db.commit()
-        db.close()
+    async def test_redirect_short_link(self):
+        # Создаём запись напрямую
+        async with self.AsyncSessionLocal() as session:
+            link = Link(short_key="ABC123", url="https://example.com/redirect", use_counter=0)
+            session.add(link)
+            await session.commit()
 
         # noinspection PyArgumentList
         response = self.client.get("/api/v1/s/ABC123", allow_redirects=False)
         self.assertEqual(response.status_code, 307)
         self.assertEqual(response.headers["location"], "https://example.com/redirect")
-
-
-if __name__ == "__main__":
-    unittest.main()
