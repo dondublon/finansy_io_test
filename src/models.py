@@ -3,6 +3,7 @@ from datetime import datetime, UTC
 from sqlalchemy import Column, Integer, String, DateTime, func
 from .database import Base
 
+
 class Link(Base):
     __tablename__ = "link"
 
@@ -10,5 +11,5 @@ class Link(Base):
     url = Column(String(2048))
     use_counter = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now(),
-                        default = datetime.now(UTC))
+                        default=datetime.now(UTC))
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

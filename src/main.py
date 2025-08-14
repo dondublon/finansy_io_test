@@ -14,13 +14,15 @@ from fastapi import APIRouter
 
 alphabet = string.ascii_letters + string.digits
 
+
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    engine, AsyncSessionLocal = init_db()
+async def lifespan(app_: FastAPI):
+    engine, async_session_local = init_db()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
     await engine.dispose()
+
 
 app = FastAPI(lifespan=lifespan)
 router = APIRouter(prefix="/api/v1")
@@ -29,6 +31,7 @@ router = APIRouter(prefix="/api/v1")
 def get_short_key():
     short_key = ''.join(secrets.choice(alphabet) for _ in range(6))
     return short_key
+
 
 @router.post("/shorten", response_model=LinkCreateResponse)
 async def create_short_link(payload: LinkCreate, db: AsyncSession = Depends(get_db)):
@@ -65,4 +68,6 @@ async def get_stats(key: str, db: AsyncSession = Depends(get_db)):
         "clicks": link.use_counter,
         "created_at": link.created_at
     }
+
+
 app.include_router(router)
