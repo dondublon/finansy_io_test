@@ -58,6 +58,11 @@ class AsyncTestLinks(unittest.IsolatedAsyncioTestCase):
         response = self.client.get(f"/api/v1/s/{key}", follow_redirects=False)
         self.assertEqual(response.status_code, 307)
         self.assertEqual(response.headers["location"], "https://example.com/redirect")
+        # Проверка счётчика
+        async with self.AsyncSessionLocal() as session:
+            result = await session.execute(select(Link).where(Link.short_key == key))
+            updated_link = result.scalar_one()
+            self.assertEqual(updated_link.use_counter, 1)
 
     async def test_stats_endpoint(self):
         # Создаём запись напрямую в базе
