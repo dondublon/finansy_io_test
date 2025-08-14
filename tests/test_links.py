@@ -58,3 +58,23 @@ class AsyncTestLinks(unittest.IsolatedAsyncioTestCase):
         response = self.client.get(f"/api/v1/s/{key}", follow_redirects=False)
         self.assertEqual(response.status_code, 307)
         self.assertEqual(response.headers["location"], "https://example.com/redirect")
+
+    async def test_stats_endpoint(self):
+        # Создаём запись напрямую в базе
+        key = get_short_key()
+        async with self.AsyncSessionLocal() as session:
+            link = Link(
+                short_key=key,
+                url="https://example.com",
+                use_counter=5
+            )
+            session.add(link)
+            await session.commit()
+
+        # Вызываем эндпоинт
+        response = self.client.get(f"/api/v1/stats/{key}")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["original_url"], "https://example.com")
+        self.assertEqual(data["clicks"], 5)
+        self.assertIn("created_at", data)
