@@ -1,0 +1,12 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    container_name: fastapi_app
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: "sqlite+aiosqlite:///./src/main.db"
+    volumes:
+      - ./src:/app/src

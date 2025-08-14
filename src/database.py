@@ -10,7 +10,8 @@ _AsyncSessionLocal = None
 def init_db(database_url: str = None):
     global _engine, _AsyncSessionLocal
     if database_url is None:
-        database_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./main.db")
+        db_url = os.environ.get('DATABASE_URL', "sqlite+aiosqlite:///./main.db")
+        database_url = os.getenv("DATABASE_URL", db_url)
     _engine, _AsyncSessionLocal = create_async_engine_and_session(database_url)
     return _engine, _AsyncSessionLocal
 
